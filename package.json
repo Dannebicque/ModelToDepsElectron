@@ -1,0 +1,26 @@
+{
+  "name": "model-to-deps",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/electron/main.js",
+  "scripts": {
+    "build": "tsc && npm run copy-static",
+    "copy-static": "cp src/renderer/index.html dist/src/renderer/ && cp src/renderer/styles.css dist/src/renderer/",
+    "build:watch": "concurrently \"tsc -w\" \"npm run copy-static -- -w\"",
+    "start:electron": "electron .",
+    "dev": "npm run build && concurrently \"tsc -w\" \"npm run start:electron\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^39.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.0",
+    "concurrently": "^9.2.1",
+    "copyfiles": "^2.4.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

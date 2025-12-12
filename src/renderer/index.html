@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>ModelToDeps</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- En-tête avec barre d'étapes -->
+    <header class="app-header">
+      <div class="app-title">ModelToDeps</div>
+      <nav class="wizard-steps-nav" id="wizard-steps-nav">
+        <!-- Les étapes seront générées ici -->
+      </nav>
+      <div class="toolbar">
+        <button id="btn-export" class="btn">Exporter</button>
+      </div>
+    </header>
+
+    <!-- Zone principale avec le contenu de l'étape active -->
+    <main class="app-main">
+      <!-- Titre de l'étape actuelle -->
+      <div class="step-header">
+        <h1 id="step-title" class="step-title"></h1>
+        <p id="step-description" class="step-description"></p>
+      </div>
+
+      <!-- Contenu de l'étape -->
+      <div class="step-content">
+        <!-- Barre latérale avec composants -->
+        <aside class="components-sidebar" id="components-sidebar">
+          <h3>Composants</h3>
+          <div id="components-list" class="components-list"></div>
+        </aside>
+
+        <!-- Zone de dessin -->
+        <section class="canvas-area">
+          <!-- Contrôles de zoom -->
+          <div class="canvas-controls">
+            <button id="btn-zoom-in" class="canvas-btn" title="Zoom avant (Ctrl + +)">
+              <span>🔍+</span>
+            </button>
+            <button id="btn-zoom-out" class="canvas-btn" title="Zoom arrière (Ctrl + -)">
+              <span>🔍−</span>
+            </button>
+            <button id="btn-zoom-reset" class="canvas-btn" title="Réinitialiser le zoom (Ctrl + 0)">
+              <span>⊙</span>
+            </button>
+            <button id="btn-zoom-fit" class="canvas-btn" title="Ajuster à la vue">
+              <span>⊡</span>
+            </button>
+            <div class="zoom-level" id="zoom-level">100%</div>
+          </div>
+          
+          <div id="canvas" class="canvas">
+            <div id="canvas-content" class="canvas-content"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Contrôles de navigation -->
+      <footer class="step-footer">
+        <button id="btn-prev" class="btn btn-secondary">← Précédent</button>
+        <div id="step-status" class="step-status-message"></div>
+        <button id="btn-next" class="btn btn-primary">Suivant →</button>
+      </footer>
+    </main>
+
+    <script src="./main.js"></script>
+  </body>
+</html>
