@@ -8,10 +8,8 @@ function createWindow() {
     width: 1400,
     height: 900,
     webPreferences: {
-      // on pointera vers le preload compilé
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
+      nodeIntegration: true,
+      contextIsolation: false,
     },
   });
 

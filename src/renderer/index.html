@@ -66,6 +66,59 @@
       </footer>
     </main>
 
-    <script src="./main.js"></script>
+    <!-- Menu contextuel -->
+    <div id="context-menu" class="context-menu" style="display: none;">
+      <div class="context-menu-item" id="context-edit">
+        <span>✏️</span> Modifier
+      </div>
+      <div class="context-menu-item" id="context-delete">
+        <span>🗑️</span> Supprimer
+      </div>
+    </div>
+
+    <!-- Modal d'édition -->
+    <div id="edit-modal" class="modal" style="display: none;">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">Modifier le composant</h2>
+          <button class="modal-close" id="modal-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="edit-form">
+            <div class="form-group">
+              <label for="edit-text">Texte :</label>
+              <input type="text" id="edit-text" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="edit-equation">Équation (LaTeX) :</label>
+              <input type="text" id="edit-equation" class="form-control" placeholder="Ex: x^2 + y^2 = r^2" />
+            </div>
+            <div class="form-group">
+              <label for="edit-fill-color">Couleur de fond :</label>
+              <input type="color" id="edit-fill-color" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="edit-stroke-color">Couleur de bordure :</label>
+              <input type="color" id="edit-stroke-color" class="form-control" />
+            </div>
+            <div class="form-group">
+              <label for="edit-stroke-width">Épaisseur bordure :</label>
+              <input type="number" id="edit-stroke-width" class="form-control" min="1" max="10" />
+            </div>
+            <!-- Champs spécifiques selon le type -->
+            <div id="specific-fields"></div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" id="modal-cancel">Annuler</button>
+          <button class="btn btn-primary" id="modal-save">Enregistrer</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Charger le code renderer en mode CommonJS pour Electron
+      require('./main.js');
+    </script>
   </body>
 </html>

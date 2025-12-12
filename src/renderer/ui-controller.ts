@@ -1,15 +1,18 @@
 import { WizardStore } from '../domain/wizard-store';
 import { WizardConfig, Component, WizardStep } from '../domain/wizard-types';
-import { DiagramStore } from '../domain/diagram-stores';
-import type { DiagramNode } from '../domain/diagram-types';
+import { ComponentStore } from '../domain/components/component-store';
+import { ComponentFactory, ComponentType, BaseComponent, ShapeType } from '../domain/components';
 
 /**
  * UIController gère le rendu et les interactions de l'interface
+ * Version mise à jour utilisant le nouveau système de composants
  */
 export class UIController {
   private wizardStore: WizardStore;
-  private diagramStores: Map<string, DiagramStore> = new Map();
-  private selectedNodeId: string | null = null;
+  public componentStores: Map<string, ComponentStore> = new Map();
+  private selectedComponentId: string | null = null;
+  private contextMenuTargetId: string | null = null;
+  private currentStepId: string = '';
 
   // Elements DOM
   private wizardStepsEl: HTMLElement;
@@ -20,30 +23,38 @@ export class UIController {
   private btnPrevEl: HTMLButtonElement;
   private btnNextEl: HTMLButtonElement;
   private btnExportEl: HTMLButtonElement;
+  private componentsSidebarEl: HTMLElement;
+  private componentsListEl: HTMLElement;
+  private canvasContentEl: HTMLElement;
+  private contextMenuEl: HTMLElement;
+  private editModalEl: HTMLElement;
 
   constructor(config: WizardConfig) {
     this.wizardStore = new WizardStore(config);
 
-    // Initialiser un DiagramStore pour chaque step
+    // Initialiser un ComponentStore pour chaque step
     config.steps.forEach((step) => {
-      this.diagramStores.set(step.id, new DiagramStore());
+      this.componentStores.set(step.id, new ComponentStore());
     });
 
-    // Récupérer les éléments DOM
-    this.wizardStepsEl = document.getElementById('wizard-steps')!;
-    this.wizardContentEl = document.getElementById('wizard-content')!;
+    // Récupérer les éléments DOM avec les bons IDs
+    this.wizardStepsEl = document.getElementById('wizard-steps-nav')!;
+    this.wizardContentEl = document.querySelector('.step-content')!;
     this.stepStatusEl = document.getElementById('step-status')!;
     this.stepTitleEl = document.getElementById('step-title')!;
     this.stepDescriptionEl = document.getElementById('step-description')!;
-    this.btnPrevEl = document.getElementById('btn-prev-step') as HTMLButtonElement;
-    this.btnNextEl = document.getElementById('btn-next-step') as HTMLButtonElement;
-    this.btnExportEl = document.getElementById('btn-export-json') as HTMLButtonElement;
-
-    console.log('UIController initialized');
-    console.log('wizard-steps element:', this.wizardStepsEl);
-    console.log('Config steps count:', config.steps.length);
+    this.btnPrevEl = document.getElementById('btn-prev') as HTMLButtonElement;
+    this.btnNextEl = document.getElementById('btn-next') as HTMLButtonElement;
+    this.btnExportEl = document.getElementById('btn-export') as HTMLButtonElement;
+    this.componentsSidebarEl = document.getElementById('components-sidebar')!;
+    this.componentsListEl = document.getElementById('components-list')!;
+    this.canvasContentEl = document.getElementById('canvas-content')!;
+    this.contextMenuEl = document.getElementById('context-menu')!;
+    this.editModalEl = document.getElementById('edit-modal')!;
 
     this.setupEventListeners();
+    this.setupContextMenu();
+    this.setupEditModal();
     this.render();
   }
 
@@ -60,107 +71,90 @@ export class UIController {
   }
 
   private renderStepNavigation(): void {
-    console.log('renderStepNavigation called');
     this.wizardStepsEl.innerHTML = '';
 
     const steps = this.wizardStore.getConfig().steps;
-    console.log('Total steps:', steps.length);
+    const currentIndex = this.wizardStore.getCurrentStepIndex();
 
     steps.forEach((step, index) => {
-      console.log(`Creating button for step ${index}: ${step.title}`);
+      const stepEl = document.createElement('div');
+      stepEl.className = 'wizard-step';
       
-      const wrapper = document.createElement('div');
-      wrapper.className = 'wizard-step-wrapper';
-
-      const button = document.createElement('button');
-      button.className = 'wizard-step-button';
-      button.disabled = !this.wizardStore.canGoToStep(index);
-
-      if (index === this.wizardStore.getCurrentStepIndex()) {
-        button.classList.add('active');
+      if (index === currentIndex) {
+        stepEl.classList.add('active');
+      }
+      
+      if (!this.wizardStore.canGoToStep(index)) {
+        stepEl.classList.add('disabled');
       }
 
-      // Ajouter le titre
-      const titleSpan = document.createElement('span');
-      titleSpan.textContent = step.title;
-      button.appendChild(titleSpan);
+      const numberEl = document.createElement('div');
+      numberEl.className = 'wizard-step-number';
+      numberEl.textContent = `${index + 1}`;
+      stepEl.appendChild(numberEl);
 
-      // Ajouter le numéro de l'étape
-      const numberSpan = document.createElement('span');
-      numberSpan.className = 'wizard-step-number';
-      numberSpan.textContent = `${index + 1}/${this.wizardStore.getStepCount()}`;
-      button.appendChild(numberSpan);
+      const titleEl = document.createElement('div');
+      titleEl.className = 'wizard-step-title';
+      titleEl.textContent = step.title;
+      stepEl.appendChild(titleEl);
 
-      // Ajouter l'indicateur de statut
+      // Ajouter l'indicateur d'état
       const indicator = document.createElement('span');
       indicator.className = 'wizard-step-indicator';
       
-      if (this.wizardStore.isStepValid(index)) {
-        indicator.classList.add('valid');
-      } else if (index < this.wizardStore.getCurrentStepIndex()) {
-        // Si on est passé à une étape suivante, c'est qu'elle était valide
-        indicator.classList.add('valid');
-      } else if (index === this.wizardStore.getCurrentStepIndex()) {
+      if (index < currentIndex) {
+        // Étape précédente : vérifier si valide
+        if (this.wizardStore.isStepValid(index)) {
+          indicator.classList.add('valid');
+          indicator.textContent = '✓';
+        } else {
+          indicator.classList.add('invalid');
+          indicator.textContent = '✗';
+        }
+      } else if (index === currentIndex) {
+        // Étape en cours
         indicator.classList.add('pending');
-      } else {
-        indicator.classList.add('pending');
+        indicator.textContent = '•';
+      }
+      
+      if (indicator.classList.length > 1) {
+        stepEl.appendChild(indicator);
       }
 
-      button.appendChild(indicator);
+      if (!stepEl.classList.contains('disabled')) {
+        stepEl.addEventListener('click', () => {
+          if (this.wizardStore.canGoToStep(index)) {
+            this.wizardStore.goToStep(index);
+            this.render();
+          }
+        });
+      }
 
-      button.addEventListener('click', () => {
-        if (this.wizardStore.goToStep(index)) {
-          this.render();
-        }
-      });
-
-      wrapper.appendChild(button);
-      this.wizardStepsEl.appendChild(wrapper);
-      
-      console.log(`Button added for step ${index}`);
+      this.wizardStepsEl.appendChild(stepEl);
     });
-    
-    console.log('Final wizardStepsEl HTML:', this.wizardStepsEl.innerHTML.substring(0, 100));
   }
 
   private renderStepContent(): void {
-    this.wizardContentEl.innerHTML = '';
-
     const currentStep = this.wizardStore.getCurrentStep();
-    const diagramStore = this.diagramStores.get(currentStep.id)!;
+    if (!currentStep) return;
 
-    // Mettre à jour le titre et la description
-    this.stepTitleEl.textContent = `${this.wizardStore.getCurrentStepIndex() + 1}. ${currentStep.title}`;
+    this.stepTitleEl.textContent = currentStep.title;
     this.stepDescriptionEl.textContent = currentStep.description || '';
+    this.stepStatusEl.textContent = `Étape ${this.wizardStore.getCurrentStepIndex() + 1} sur ${this.wizardStore.getStepCount()}`;
 
-    // Créer le panel de l'étape
-    const panel = document.createElement('div');
-    panel.className = 'wizard-step-panel active';
-
-    // Sidebar avec liste de composants
-    const sidebar = this.createStepSidebar(currentStep);
-    panel.appendChild(sidebar);
-
-    // Zone de dessin
-    const canvasArea = this.createCanvasArea(diagramStore, currentStep.id);
-    panel.appendChild(canvasArea);
-
-    this.wizardContentEl.appendChild(panel);
+    // Rendre les composants disponibles dans la liste
+    this.renderComponentsList(currentStep);
+    
+    // Rendre le canvas
+    const componentStore = this.componentStores.get(currentStep.id)!;
+    this.renderCanvas(componentStore, currentStep.id);
   }
 
-  private createStepSidebar(step: WizardStep): HTMLElement {
-    const sidebar = document.createElement('div');
-    sidebar.className = 'step-sidebar';
-
-    const title = document.createElement('h3');
-    title.textContent = 'Composants disponibles';
-    sidebar.appendChild(title);
-
-    const list = document.createElement('ul');
-    list.className = 'components-list';
+  private renderComponentsList(step: WizardStep): void {
+    this.componentsListEl.innerHTML = '';
 
     step.components.forEach((component) => {
-      const item = document.createElement('li');
+      const item = document.createElement('div');
       item.className = 'component-item';
       item.draggable = true;
       item.dataset.componentId = component.id;
@@ -177,6 +171,14 @@ export class UIController {
         item.appendChild(desc);
       }
 
+      // Badge de catégorie
+      if (component.category) {
+        const badge = document.createElement('span');
+        badge.className = `category-badge category-${component.category}`;
+        badge.textContent = component.category;
+        item.appendChild(badge);
+      }
+
       // Drag & drop
       item.addEventListener('dragstart', (e) => {
         const dt = e.dataTransfer!;
@@ -184,233 +186,440 @@ export class UIController {
         dt.setData('application/json', JSON.stringify(component));
       });
 
-      list.appendChild(item);
+      this.componentsListEl.appendChild(item);
     });
 
-    sidebar.appendChild(list);
-    return sidebar;
+    // Ajouter les statistiques
+    const stats = document.createElement('div');
+    stats.className = 'step-stats';
+    const componentStore = this.componentStores.get(step.id)!;
+    const storeStats = componentStore.getStats();
+    
+    stats.innerHTML = `
+      <h4>Statistiques</h4>
+      <div class="stat-item">
+        <span>Total composants:</span>
+        <strong>${storeStats.total}</strong>
+      </div>
+    `;
+    
+    this.componentsListEl.appendChild(stats);
   }
 
-  private createCanvasArea(diagramStore: DiagramStore, stepId: string): HTMLElement {
-    const container = document.createElement('div');
-    container.className = 'canvas-container';
-
-    const canvas = document.createElement('div');
-    canvas.className = 'canvas';
-    canvas.id = `canvas-${stepId}`;
+  private renderCanvas(componentStore: ComponentStore, stepId: string): void {
+    this.canvasContentEl.innerHTML = '';
 
     // Support du drag & drop
-    canvas.addEventListener('dragover', (e) => {
+    this.canvasContentEl.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer!.dropEffect = 'copy';
-      canvas.style.opacity = '0.8';
     });
 
-    canvas.addEventListener('dragleave', () => {
-      canvas.style.opacity = '1';
-    });
-
-    canvas.addEventListener('drop', (e) => {
+    this.canvasContentEl.addEventListener('drop', (e) => {
       e.preventDefault();
-      canvas.style.opacity = '1';
 
       const data = e.dataTransfer!.getData('application/json');
       if (data) {
-        const component = JSON.parse(data) as Component;
-        const rect = canvas.getBoundingClientRect();
+        const wizardComponent = JSON.parse(data) as Component;
+        const rect = this.canvasContentEl.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        const node = diagramStore.addNode({
-          label: component.name,
-          x: Math.max(0, x),
-          y: Math.max(0, y),
+        // Créer le composant approprié selon la catégorie
+        const component = this.createComponentFromWizardComponent(
+          wizardComponent,
+          x,
+          y,
+          stepId
+        );
+
+        componentStore.add(component);
+        this.renderCanvas(componentStore, stepId);
+      }
+    });
+
+    this.canvasContentEl.addEventListener('mousedown', () => {
+      this.selectedComponentId = null;
+      this.renderCanvas(componentStore, stepId);
+    });
+
+    // Rendre les composants existants
+    const components = componentStore.getByStep(stepId);
+    components.forEach((component) => {
+      const el = this.createComponentElement(component, componentStore, stepId);
+      this.canvasContentEl.appendChild(el);
+    });
+  }
+
+  private createComponentFromWizardComponent(
+    wizardComponent: Component,
+    x: number,
+    y: number,
+    stepId: string
+  ): BaseComponent {
+    const category = wizardComponent.category || 'process';
+    let component: BaseComponent;
+
+    switch (category) {
+      case 'flow':
+        // Déterminer si c'est un début ou une fin
+        const isStart = wizardComponent.name.toLowerCase().includes('début') || 
+                       wizardComponent.name.toLowerCase().includes('start');
+        if (isStart) {
+          component = ComponentFactory.createStart({
+            content: { text: wizardComponent.name },
+            position: { x, y, width: 120, height: 60 },
+          });
+        } else {
+          component = ComponentFactory.createEnd({
+            content: { text: wizardComponent.name },
+            position: { x, y, width: 120, height: 60 },
+          });
+        }
+        break;
+
+      case 'decision':
+        component = ComponentFactory.createDecision({
+          question: wizardComponent.name,
+          content: { text: wizardComponent.name },
+          position: { x, y, width: 140, height: 100 },
         });
+        break;
 
-        this.renderCanvas(canvas, diagramStore, stepId);
-      }
-    });
+      case 'data':
+        component = ComponentFactory.createData({
+          dataType: 'generic',
+          content: { text: wizardComponent.name },
+          position: { x, y, width: 160, height: 80 },
+        });
+        break;
 
-    canvas.addEventListener('mousedown', () => {
-      this.selectedNodeId = null;
-      this.renderCanvas(canvas, diagramStore, stepId);
-    });
+      case 'process':
+      default:
+        component = ComponentFactory.createProcess({
+          processName: wizardComponent.name,
+          description: wizardComponent.description,
+          content: { text: wizardComponent.name },
+          position: { x, y, width: 180, height: 80 },
+        });
+        break;
+    }
 
-    this.renderCanvas(canvas, diagramStore, stepId);
-    container.appendChild(canvas);
-
-    return container;
+    component.addToStep(stepId);
+    return component;
   }
 
-  private renderCanvas(canvas: HTMLElement, diagramStore: DiagramStore, stepId: string): void {
-    canvas.innerHTML = '';
+  private createComponentElement(
+    component: BaseComponent,
+    componentStore: ComponentStore,
+    stepId: string
+  ): HTMLElement {
+    const el = document.createElement('div');
+    el.className = 'diagram-component';
+    el.classList.add(`component-${component.type}`);
+    el.classList.add(`shape-${component.shape}`);
+    el.dataset.componentId = component.id;
 
-    const state = diagramStore.state;
+    if (component.id === this.selectedComponentId) {
+      el.classList.add('selected');
+    }
 
-    state.nodes.forEach((node) => {
-      const el = document.createElement('div');
-      el.className = 'diagram-node';
-      el.style.left = `${node.x}px`;
-      el.style.top = `${node.y}px`;
-      el.style.width = `${node.width}px`;
-      el.style.height = `${node.height}px`;
-      el.style.backgroundColor = node.color;
-      el.dataset.id = node.id;
+    // Style de positionnement
+    el.style.position = 'absolute';
+    el.style.left = `${component.position.x}px`;
+    el.style.top = `${component.position.y}px`;
+    el.style.width = `${component.position.width}px`;
+    el.style.height = `${component.position.height}px`;
 
-      if (node.id === this.selectedNodeId) {
-        el.classList.add('selected');
-      }
+    // Style visuel
+    if (component.style.fillColor) {
+      el.style.backgroundColor = component.style.fillColor;
+    }
+    if (component.style.strokeColor) {
+      el.style.borderColor = component.style.strokeColor;
+    }
+    if (component.style.strokeWidth) {
+      el.style.borderWidth = `${component.style.strokeWidth}px`;
+    }
+    if (component.style.opacity !== undefined) {
+      el.style.opacity = component.style.opacity.toString();
+    }
 
-      const label = document.createElement('div');
-      label.className = 'diagram-node-label';
-      label.textContent = node.label;
-      el.appendChild(label);
+    // Contenu texte
+    const textEl = document.createElement('div');
+    textEl.className = 'component-text';
+    textEl.textContent = component.content.text || '';
+    el.appendChild(textEl);
 
-      this.makeDraggable(el, node, diagramStore, canvas);
-
-      el.addEventListener('mousedown', (ev) => {
-        ev.stopPropagation();
-        this.selectedNodeId = node.id;
-        this.renderCanvas(canvas, diagramStore, stepId);
-      });
-
-      canvas.appendChild(el);
+    // Gestion du clic
+    el.addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      this.selectedComponentId = component.id;
+      this.renderCanvas(componentStore, stepId);
     });
 
-    // Sauvegarder l'état dans le wizard
-    const stepData = this.wizardStore.getCurrentStepData();
-    this.wizardStore.updateStepData(stepId, {
-      ...stepData,
-      diagramNodes: state.nodes,
-      diagramEdges: state.edges,
+    // Menu contextuel (clic droit)
+    el.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this.showContextMenu(e.clientX, e.clientY, component.id, stepId);
     });
-  }
 
-  private makeDraggable(
-    el: HTMLDivElement,
-    node: DiagramNode,
-    diagramStore: DiagramStore,
-    canvas: HTMLElement
-  ): void {
+    // Drag & drop pour déplacer
     let isDragging = false;
     let startX = 0;
     let startY = 0;
-    let originX = 0;
-    let originY = 0;
 
-    const onMouseDown = (ev: MouseEvent) => {
-      isDragging = true;
-      el.style.cursor = 'grabbing';
-      startX = ev.clientX;
-      startY = ev.clientY;
-      originX = node.x;
-      originY = node.y;
+    el.addEventListener('mousedown', (e) => {
+      if (e.button === 0) { // left click
+        isDragging = true;
+        startX = e.clientX - component.position.x;
+        startY = e.clientY - component.position.y;
+        el.style.cursor = 'grabbing';
+      }
+    });
 
-      document.addEventListener('mousemove', onMouseMove);
-      document.addEventListener('mouseup', onMouseUp);
-    };
+    document.addEventListener('mousemove', (e) => {
+      if (isDragging && component.id === this.selectedComponentId) {
+        const newX = e.clientX - startX;
+        const newY = e.clientY - startY;
+        component.updatePosition({ x: newX, y: newY });
+        el.style.left = `${newX}px`;
+        el.style.top = `${newY}px`;
+      }
+    });
 
-    const onMouseMove = (ev: MouseEvent) => {
-      if (!isDragging) return;
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      const newX = originX + dx;
-      const newY = originY + dy;
+    document.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        el.style.cursor = 'grab';
+        componentStore.update(component.id, (c) => {
+          c.updatePosition({
+            x: component.position.x,
+            y: component.position.y
+          });
+        });
+      }
+    });
 
-      diagramStore.updateNodePosition(node.id, newX, newY);
-      el.style.left = `${newX}px`;
-      el.style.top = `${newY}px`;
-    };
-
-    const onMouseUp = () => {
-      if (!isDragging) return;
-      isDragging = false;
-      el.style.cursor = 'grab';
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    };
-
-    el.addEventListener('mousedown', onMouseDown);
+    return el;
   }
 
   private updateControls(): void {
     const currentIndex = this.wizardStore.getCurrentStepIndex();
-    const stepCount = this.wizardStore.getStepCount();
-
-    // Bouton précédent
     this.btnPrevEl.disabled = currentIndex === 0;
-
-    // Bouton suivant
-    this.btnNextEl.disabled = currentIndex === stepCount - 1;
-
-    // Afficher le statut
-    this.updateStepStatus();
-  }
-
-  private updateStepStatus(): void {
-    const currentIndex = this.wizardStore.getCurrentStepIndex();
-    const stepCount = this.wizardStore.getStepCount();
-
-    if (this.wizardStore.validateCurrentStep()) {
-      this.stepStatusEl.className = 'step-status success';
-      this.stepStatusEl.textContent = `Étape ${currentIndex + 1}/${stepCount} - Valide ✓`;
-    } else {
-      this.stepStatusEl.className = 'step-status error';
-      const errors = this.wizardStore.getValidationErrors(currentIndex);
-      if (errors.length > 0) {
-        this.stepStatusEl.textContent = errors[0];
-      } else {
-        this.stepStatusEl.textContent = `Étape ${currentIndex + 1}/${stepCount} - Invalide`;
-      }
-    }
+    this.btnNextEl.disabled = currentIndex === this.wizardStore.getStepCount() - 1;
   }
 
   private handlePreviousStep(): void {
-    if (this.wizardStore.goToPreviousStep()) {
+    if (this.wizardStore.getCurrentStepIndex() > 0) {
+      this.wizardStore.goToPreviousStep();
       this.render();
     }
   }
 
   private handleNextStep(): void {
-    if (this.wizardStore.validateCurrentStep()) {
-      if (this.wizardStore.goToNextStep()) {
-        this.render();
-      }
-    } else {
-      alert('Veuillez valider cette étape avant de continuer');
+    if (this.wizardStore.getCurrentStepIndex() < this.wizardStore.getStepCount() - 1) {
+      this.wizardStore.goToNextStep();
+      this.render();
     }
   }
 
   private handleExport(): void {
-    const data = this.wizardStore.exportData();
-    console.log(JSON.stringify(data, null, 2));
-    alert('Données exportées dans la console');
-  }
+    const data: any = {
+      config: this.wizardStore.getConfig(),
+      steps: {},
+    };
 
-  // Méthode publique pour mettre à jour la configuration du wizard
-  public updateConfig(config: WizardConfig): void {
-    // Recréer le wizard store avec la nouvelle configuration
-    const currentData = this.wizardStore.exportData();
-
-    // On pourrait implémenter une migration des données ici
-    // Pour maintenant, on recrée simplement
-    const newStore = new WizardStore(config);
-    this.wizardStore = newStore;
-
-    // Réinitialiser les diagram stores
-    this.diagramStores.clear();
-    config.steps.forEach((step) => {
-      this.diagramStores.set(step.id, new DiagramStore());
+    this.componentStores.forEach((store, stepId) => {
+      data.steps[stepId] = store.toJSON();
     });
 
-    this.render();
+    const json = JSON.stringify(data, null, 2);
+    
+    // Créer un blob et télécharger
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wizard-export-${Date.now()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    console.log('Export JSON:', json);
   }
 
+  private setupContextMenu(): void {
+    // Fermer le menu si on clique ailleurs
+    document.addEventListener('click', () => {
+      this.contextMenuEl.style.display = 'none';
+    });
+
+    // Action modifier
+    document.getElementById('context-edit')!.addEventListener('click', () => {
+      this.contextMenuEl.style.display = 'none';
+      if (this.contextMenuTargetId) {
+        this.openEditModal(this.contextMenuTargetId, this.currentStepId);
+      }
+    });
+
+    // Action supprimer
+    document.getElementById('context-delete')!.addEventListener('click', () => {
+      this.contextMenuEl.style.display = 'none';
+      if (this.contextMenuTargetId) {
+        this.deleteComponent(this.contextMenuTargetId, this.currentStepId);
+      }
+    });
+  }
+
+  private showContextMenu(x: number, y: number, componentId: string, stepId: string): void {
+    this.contextMenuTargetId = componentId;
+    this.currentStepId = stepId;
+    
+    this.contextMenuEl.style.left = `${x}px`;
+    this.contextMenuEl.style.top = `${y}px`;
+    this.contextMenuEl.style.display = 'block';
+  }
+
+  private deleteComponent(componentId: string, stepId: string): void {
+    const componentStore = this.componentStores.get(stepId);
+    if (componentStore) {
+      componentStore.remove(componentId);
+      this.renderCanvas(componentStore, stepId);
+    }
+  }
+
+  private setupEditModal(): void {
+    const closeBtn = document.getElementById('modal-close')!;
+    const cancelBtn = document.getElementById('modal-cancel')!;
+    const saveBtn = document.getElementById('modal-save')!;
+
+    closeBtn.addEventListener('click', () => this.closeEditModal());
+    cancelBtn.addEventListener('click', () => this.closeEditModal());
+    saveBtn.addEventListener('click', () => this.saveComponentEdits());
+
+    // Fermer si clic sur le fond
+    this.editModalEl.addEventListener('click', (e) => {
+      if (e.target === this.editModalEl) {
+        this.closeEditModal();
+      }
+    });
+  }
+
+  private openEditModal(componentId: string, stepId: string): void {
+    const componentStore = this.componentStores.get(stepId);
+    if (!componentStore) return;
+
+    const component = componentStore.get(componentId);
+    if (!component) return;
+
+    this.contextMenuTargetId = componentId;
+    this.currentStepId = stepId;
+
+    // Remplir les champs
+    (document.getElementById('edit-text') as HTMLInputElement).value = component.content.text || '';
+    (document.getElementById('edit-equation') as HTMLInputElement).value = component.content.equation || '';
+    (document.getElementById('edit-fill-color') as HTMLInputElement).value = component.style.fillColor;
+    (document.getElementById('edit-stroke-color') as HTMLInputElement).value = component.style.strokeColor;
+    (document.getElementById('edit-stroke-width') as HTMLInputElement).value = component.style.strokeWidth.toString();
+
+    // Ajouter des champs spécifiques selon le type
+    const specificFields = document.getElementById('specific-fields')!;
+    specificFields.innerHTML = '';
+
+    if (component.type === 'process') {
+      const processData = component.toJSON() as any;
+      specificFields.innerHTML = `
+        <div class="form-group">
+          <label for="edit-process-name">Nom du processus :</label>
+          <input type="text" id="edit-process-name" class="form-control" value="${processData.processName || ''}" />
+        </div>
+        <div class="form-group">
+          <label for="edit-process-desc">Description :</label>
+          <textarea id="edit-process-desc" class="form-control" rows="3">${processData.description || ''}</textarea>
+        </div>
+      `;
+    } else if (component.type === 'decision') {
+      const decisionData = component.toJSON() as any;
+      specificFields.innerHTML = `
+        <div class="form-group">
+          <label for="edit-decision-question">Question :</label>
+          <input type="text" id="edit-decision-question" class="form-control" value="${decisionData.question || ''}" />
+        </div>
+      `;
+    } else if (component.type === 'data') {
+      const dataData = component.toJSON() as any;
+      specificFields.innerHTML = `
+        <div class="form-group">
+          <label for="edit-data-type">Type de données :</label>
+          <input type="text" id="edit-data-type" class="form-control" value="${dataData.dataType || ''}" />
+        </div>
+      `;
+    }
+
+    this.editModalEl.style.display = 'flex';
+  }
+
+  private closeEditModal(): void {
+    this.editModalEl.style.display = 'none';
+  }
+
+  private saveComponentEdits(): void {
+    if (!this.contextMenuTargetId || !this.currentStepId) return;
+
+    const componentStore = this.componentStores.get(this.currentStepId);
+    if (!componentStore) return;
+
+    const component = componentStore.get(this.contextMenuTargetId);
+    if (!component) return;
+
+    // Récupérer les valeurs
+    const text = (document.getElementById('edit-text') as HTMLInputElement).value;
+    const equation = (document.getElementById('edit-equation') as HTMLInputElement).value;
+    const fillColor = (document.getElementById('edit-fill-color') as HTMLInputElement).value;
+    const strokeColor = (document.getElementById('edit-stroke-color') as HTMLInputElement).value;
+    const strokeWidth = parseInt((document.getElementById('edit-stroke-width') as HTMLInputElement).value);
+
+    // Mettre à jour le composant
+    component.updateContent({ text, equation });
+    component.updateStyle({ fillColor, strokeColor, strokeWidth });
+
+    // Champs spécifiques
+    if (component.type === 'process') {
+      const processName = (document.getElementById('edit-process-name') as HTMLInputElement)?.value;
+      const description = (document.getElementById('edit-process-desc') as HTMLTextAreaElement)?.value;
+      if (processName !== undefined) {
+        (component as any).processName = processName;
+      }
+      if (description !== undefined) {
+        (component as any).description = description;
+      }
+    } else if (component.type === 'decision') {
+      const question = (document.getElementById('edit-decision-question') as HTMLInputElement)?.value;
+      if (question !== undefined) {
+        (component as any).question = question;
+      }
+    } else if (component.type === 'data') {
+      const dataType = (document.getElementById('edit-data-type') as HTMLInputElement)?.value;
+      if (dataType !== undefined) {
+        (component as any).dataType = dataType;
+      }
+    }
+
+    // Sauvegarder et rafraîchir
+    componentStore.update(this.contextMenuTargetId, (c) => c);
+    this.renderCanvas(componentStore, this.currentStepId);
+    this.closeEditModal();
+  }
+
+  // Méthodes publiques pour accès externe
   public getWizardStore(): WizardStore {
     return this.wizardStore;
   }
 
-  public getDiagramStore(stepId: string): DiagramStore | undefined {
-    return this.diagramStores.get(stepId);
+  public getComponentStore(stepId: string): ComponentStore | undefined {
+    return this.componentStores.get(stepId);
   }
 }
