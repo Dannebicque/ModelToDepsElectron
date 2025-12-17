@@ -1,6 +1,51 @@
 import { UIController } from './ui-controller';
 import { WizardConfig } from '../domain/wizard-types';
-import { ComponentFactory, ComponentType } from '../domain/components';
+import { ComponentFactory, ComponentType, ConnectorValidationRules } from '../domain/components';
+
+// ========================================
+// CONFIGURATION DES RÈGLES DE VALIDATION DES CONNECTEURS
+// ========================================
+
+// Règles pour step-1 : Vue physique
+ConnectorValidationRules.registerRule('step-1', {
+  stepId: 'step-1',
+  allowedFromTypes: [ComponentType.DATA, ComponentType.PROCESS, ComponentType.CUSTOM],
+  allowedToTypes: [ComponentType.DATA, ComponentType.PROCESS, ComponentType.CUSTOM],
+  maxConnectionsFrom: 10,
+  maxConnectionsTo: 10,
+  customValidator: (connector, context) => {
+    // Règles spécifiques pour les capteurs et machines
+    const { fromComponent, toComponent } = context;
+    
+    // Un capteur ne peut se connecter qu'à une machine
+    if (fromComponent.content.text?.includes('Capteur') && 
+        !toComponent.content.text?.includes('Machine')) {
+      return {
+        valid: false,
+        error: 'Un capteur ne peut se connecter qu\'à une machine',
+      };
+    }
+    
+    return { valid: true };
+  },
+});
+
+// Règles pour step-2 : Vue Observateur
+ConnectorValidationRules.registerRule('step-2', {
+  stepId: 'step-2',
+  allowedFromTypes: [ComponentType.DATA, ComponentType.PROCESS, ComponentType.DECISION],
+  allowedToTypes: [ComponentType.DATA, ComponentType.PROCESS, ComponentType.DECISION],
+  maxConnectionsFrom: 5,
+});
+
+// Règles pour les autres steps (permissif par défaut)
+['step-3', 'step-4', 'step-5', 'step-6', 'step-7', 'step-8'].forEach(stepId => {
+  ConnectorValidationRules.registerRule(stepId, {
+    stepId,
+    maxConnectionsFrom: 10,
+    maxConnectionsTo: 10,
+  });
+});
 
 // ========================================
 // CONFIGURATION DU WIZARD AVEC LES NOUVEAUX COMPOSANTS

@@ -257,6 +257,35 @@ body {
   transform: translateX(4px);
 }
 
+/* Composant connecteur actif */
+.component-item.connector-active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+  transform: translateX(4px);
+  animation: pulse-connector-item 2s infinite;
+}
+
+@keyframes pulse-connector-item {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(102, 126, 234, 0.2);
+  }
+}
+
+.component-item.connector-active .component-item-name,
+.component-item.connector-active .component-item-desc {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.component-item.connector-active .category-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
 .component-name {
   font-size: 0.875rem;
   font-weight: 600;
@@ -725,4 +754,71 @@ body {
 
 .form-control[type="number"] {
   width: 100px;
+}
+
+/* ========================================
+   STYLES POUR LES CONNECTEURS
+   ======================================== */
+
+/* Composant source en mode création de connecteur */
+.diagram-component.connector-source {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  animation: pulse-connector 1.5s infinite;
+}
+
+@keyframes pulse-connector {
+  0%, 100% {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3);
+  }
+}
+
+/* Curseur en mode création de connecteur */
+.canvas-content.connector-mode {
+  cursor: crosshair;
+}
+
+/* SVG des connecteurs */
+.connectors-svg {
+  z-index: 1;
+}
+
+.connectors-svg line,
+.connectors-svg path {
+  transition: stroke-width 0.2s;
+}
+
+.connectors-svg line:hover,
+.connectors-svg path:hover {
+  stroke-width: 4 !important;
+}
+
+/* Badge pour la catégorie connector */
+.category-badge.category-connector {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-top: 0.5rem;
+}
+
+/* Message de guidage pour la création de connecteur */
+#connector-message {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translate(-50%, -100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%);
+    opacity: 1;
+  }
 }
