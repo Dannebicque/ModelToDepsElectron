@@ -7,43 +7,43 @@ import { ComponentFactory, ComponentType } from '../domain/components';
 // ========================================
 
 const config: WizardConfig = {
-  maxSteps: 3,
+  maxSteps: 8,
   steps: [
     {
       id: 'step-1',
-      title: 'Architecture Générale',
-      description: 'Définissez les composants principaux de votre système',
+      title: 'Vue physique',
+      description: 'Définissez les capteurs de votre modèle physique',
       order: 1,
       components: [
         {
-          id: 'start',
-          name: 'Début du processus',
-          description: 'Point de départ du workflow',
-          category: 'flow',
+          id: 'capteur-boolean',
+          name: 'Capteur Booléen',
+          description: 'Capteur avec deux états (vrai/faux)',
+          category: 'capteur-boolean',
         },
         {
-          id: 'db-process',
-          name: 'Base de données',
-          description: 'Composant de stockage de données',
-          category: 'data',
+          id: 'capteur-numeric',
+          name: 'Capteur Numérique',
+          description: 'Capteur avec valeurs numériques (entiers)',
+          category: 'capteur-numeric',
         },
         {
-          id: 'api-process',
-          name: 'API',
-          description: 'Interface de programmation',
-          category: 'process',
+          id: 'machine',
+          name: 'Machine',
+          description: 'Composant machine physique',
+          category: 'machine',
         },
         {
-          id: 'ui-process',
-          name: 'Interface Web',
-          description: 'Frontend utilisateur',
-          category: 'process',
+          id: 'link',
+          name: 'Lien',
+          description: 'Lien d\'appartenance entre un capteur et une machine',
+          category: 'link',
         },
       ],
     },
     {
       id: 'step-2',
-      title: 'Couche Données',
+      title: 'Vue Observateur de capteurs',
       description: 'Configurez votre infrastructure de données',
       order: 2,
       components: [
@@ -75,9 +75,169 @@ const config: WizardConfig = {
     },
     {
       id: 'step-3',
-      title: 'Services Backend',
+      title: 'Vue tâches',
       description: 'Ajoutez vos services et microservices',
       order: 3,
+      components: [
+        {
+          id: 'auth-service',
+          name: 'Authentification',
+          description: "Service d'authentification",
+          category: 'process',
+        },
+        {
+          id: 'gateway-service',
+          name: 'API Gateway',
+          description: "Point d'entrée",
+          category: 'process',
+        },
+        {
+          id: 'queue-service',
+          name: 'Message Queue',
+          description: 'File de messages',
+          category: 'data',
+        },
+        {
+          id: 'end',
+          name: 'Fin du processus',
+          description: 'Point de fin du workflow',
+          category: 'flow',
+        },
+      ],
+    },
+    {
+      id: 'step-4',
+      title: 'Vue intra-tâches',
+      description: 'Ajoutez vos services et microservices',
+      order: 4,
+      components: [
+        {
+          id: 'auth-service',
+          name: 'Authentification',
+          description: "Service d'authentification",
+          category: 'process',
+        },
+        {
+          id: 'gateway-service',
+          name: 'API Gateway',
+          description: "Point d'entrée",
+          category: 'process',
+        },
+        {
+          id: 'queue-service',
+          name: 'Message Queue',
+          description: 'File de messages',
+          category: 'data',
+        },
+        {
+          id: 'end',
+          name: 'Fin du processus',
+          description: 'Point de fin du workflow',
+          category: 'flow',
+        },
+      ],
+    },
+    {
+      id: 'step-5',
+      title: 'Vue incompatibilités',
+      description: 'Ajoutez vos services et microservices',
+      order: 5,
+      components: [
+        {
+          id: 'auth-service',
+          name: 'Authentification',
+          description: "Service d'authentification",
+          category: 'process',
+        },
+        {
+          id: 'gateway-service',
+          name: 'API Gateway',
+          description: "Point d'entrée",
+          category: 'process',
+        },
+        {
+          id: 'queue-service',
+          name: 'Message Queue',
+          description: 'File de messages',
+          category: 'data',
+        },
+        {
+          id: 'end',
+          name: 'Fin du processus',
+          description: 'Point de fin du workflow',
+          category: 'flow',
+        },
+      ],
+    },
+    {
+      id: 'step-6',
+      title: 'Vue successions',
+      description: 'Ajoutez vos services et microservices',
+      order: 6,
+      components: [
+        {
+          id: 'auth-service',
+          name: 'Authentification',
+          description: "Service d'authentification",
+          category: 'process',
+        },
+        {
+          id: 'gateway-service',
+          name: 'API Gateway',
+          description: "Point d'entrée",
+          category: 'process',
+        },
+        {
+          id: 'queue-service',
+          name: 'Message Queue',
+          description: 'File de messages',
+          category: 'data',
+        },
+        {
+          id: 'end',
+          name: 'Fin du processus',
+          description: 'Point de fin du workflow',
+          category: 'flow',
+        },
+      ],
+    },
+    {
+      id: 'step-7',
+      title: 'Vue priorités',
+      description: 'Ajoutez vos services et microservices',
+      order: 7,
+      components: [
+        {
+          id: 'auth-service',
+          name: 'Authentification',
+          description: "Service d'authentification",
+          category: 'process',
+        },
+        {
+          id: 'gateway-service',
+          name: 'API Gateway',
+          description: "Point d'entrée",
+          category: 'process',
+        },
+        {
+          id: 'queue-service',
+          name: 'Message Queue',
+          description: 'File de messages',
+          category: 'data',
+        },
+        {
+          id: 'end',
+          name: 'Fin du processus',
+          description: 'Point de fin du workflow',
+          category: 'flow',
+        },
+      ],
+    },
+    {
+      id: 'step-8',
+      title: 'Vue globale',
+      description: 'Ajoutez vos services et microservices',
+      order: 8,
       components: [
         {
           id: 'auth-service',
