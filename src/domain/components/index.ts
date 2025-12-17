@@ -15,9 +15,23 @@ export { DecisionComponent } from './decision-component';
 export { StartEndComponent } from './start-end-component';
 export { DataComponent } from './data-component';
 export { CustomComponent } from './custom-component';
+export { 
+  ConnectorComponent,
+  ArrowDirection,
+  ArrowStyle,
+  ArrowEndType,
+  type ConnectorComponentData,
+  type ConnectorValidationRule,
+} from './connector-component';
 
 // Factory
 export { ComponentFactory } from './component-factory';
 
 // Store
 export { ComponentStore, type ComponentFilter } from './component-store';
+
+// Validation des connecteurs
+export { 
+  ConnectorValidationRules,
+  PRESET_VALIDATION_RULES,
+} from './connector-validation-rules';

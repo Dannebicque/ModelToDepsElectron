@@ -9,6 +9,7 @@ import { DecisionComponent } from './decision-component';
 import { StartEndComponent } from './start-end-component';
 import { DataComponent } from './data-component';
 import { CustomComponent } from './custom-component';
+import { ConnectorComponent, ConnectorComponentData } from './connector-component';
 import {
   ComponentType,
   ComponentData,
@@ -40,6 +41,9 @@ export class ComponentFactory {
       
       case ComponentType.CUSTOM:
         return new CustomComponent(data as Partial<CustomComponentData>);
+      
+      case ComponentType.CONNECTOR:
+        return new ConnectorComponent(data as Partial<ConnectorComponentData>);
       
       default:
         throw new Error(`Type de composant inconnu: ${type}`);
@@ -84,6 +88,10 @@ export class ComponentFactory {
 
   static createCustom(data?: Partial<CustomComponentData>): CustomComponent {
     return new CustomComponent(data ?? {});
+  }
+
+  static createConnector(data?: Partial<ConnectorComponentData>): ConnectorComponent {
+    return new ConnectorComponent(data ?? {});
   }
 
   /**

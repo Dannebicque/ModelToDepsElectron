@@ -37,7 +37,7 @@ const config: WizardConfig = {
           id: 'link',
           name: 'Lien',
           description: 'Lien d\'appartenance entre un capteur et une machine',
-          category: 'link',
+          category: 'connector',
         },
       ],
     },

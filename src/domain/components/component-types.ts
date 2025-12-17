@@ -25,6 +25,7 @@ export enum ComponentType {
   START_END = 'start-end',
   DATA = 'data',
   CUSTOM = 'custom',
+  CONNECTOR = 'connector',
 }
 
 // Propriétés de style
@@ -102,13 +103,17 @@ export interface CustomComponentData extends BaseComponentData {
   customProperties?: Record<string, any>;
 }
 
+// Import du type ConnectorComponentData
+export type { ConnectorComponentData } from './connector-component';
+
 // Union type de tous les types de composants
 export type ComponentData =
   | ProcessComponentData
   | DecisionComponentData
   | StartEndComponentData
   | DataComponentData
-  | CustomComponentData;
+  | CustomComponentData
+  | import('./connector-component').ConnectorComponentData;
 
 // Type pour la sérialisation JSON
 export type SerializedComponent = Omit<ComponentData, 'createdAt' | 'updatedAt'> & {
